@@ -1,5 +1,6 @@
 plugins {
 	java
+	id("com.diffplug.spotless") version "8.9.0"
 	id("org.springframework.boot") version "4.1.0"
 	id("io.spring.dependency-management") version "1.1.7"
 }
@@ -15,6 +16,17 @@ java {
 
 repositories {
 	mavenCentral()
+}
+
+spotless {
+	java {
+		googleJavaFormat("1.36.1")
+	}
+
+	sql {
+		target("src/main/resources/**/*.sql")
+		dbeaver()
+	}
 }
 
 dependencies {
