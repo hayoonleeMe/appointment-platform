@@ -1,0 +1,21 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Editor files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.iml
+*.ipr
+*.iws
+*.suo
+.DS_Store
+
+# Local Codex state
+/.codex/
+
+# Logs
+logs/
+*.log
