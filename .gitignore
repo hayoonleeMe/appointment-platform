@@ -19,3 +19,6 @@
 # Logs
 logs/
 *.log
+
+# Personal notes
+/docs/notes/
