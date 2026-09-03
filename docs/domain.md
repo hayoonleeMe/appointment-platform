@@ -13,17 +13,17 @@
 
 | 용어 | 영문 모델·테이블 | 의미 |
 | --- | --- | --- |
-| 운영자 | `Operator` / `operators` | 예약 유형을 제공하고 예약을 관리하는 사용자 |
+| 운영자 | `Operator` / `operator` | 예약 유형을 제공하고 예약을 관리하는 사용자 |
 | 고객 | - | 예약 페이지에서 예약하는 사용자 |
 | 예약 페이지 | - | 고객이 예약 유형과 예약 가능 선택지를 조회하고 예약하는 운영자별 페이지 |
-| 예약 유형 | `AppointmentType` / `appointment_types` | 운영자가 제공하는 예약 단위. 1:1 또는 그룹 수업 방식 중 하나를 가진다. |
+| 예약 유형 | `AppointmentType` / `appointment_type` | 운영자가 제공하는 예약 단위. 1:1 또는 그룹 수업 방식 중 하나를 가진다. |
 | 예약 방식 | - | 예약 유형의 방식. `1:1` 또는 `그룹 수업`이다. |
-| 예약 세션 | `AppointmentSession` / `appointment_sessions` | 예약 유형의 특정 시작 시각에 실제로 열리는 예약 단위다. |
-| 예약 유형 일정 | `AppointmentSchedule` / `appointment_schedules` | 예약 유형의 요일별 반복 예약 가능 시간 구간 |
-| 예약 유형 일정 예외 | `AppointmentScheduleException` / `appointment_schedule_exceptions` | 특정 날짜의 휴무 또는 시간 변경 규칙 |
-| 예약 유형 일정 예외 시간 구간 | `AppointmentScheduleExceptionTimeRange` / `appointment_schedule_exception_time_ranges` | 시간 변경 예외가 대체할 예약 가능 시간 구간 |
+| 예약 세션 | `AppointmentSession` / `appointment_session` | 예약 유형의 특정 시작 시각에 실제로 열리는 예약 단위다. |
+| 예약 유형 일정 | `AppointmentSchedule` / `appointment_schedule` | 예약 유형의 요일별 반복 예약 가능 시간 구간 |
+| 예약 유형 일정 예외 | `AppointmentScheduleException` / `appointment_schedule_exception` | 특정 날짜의 휴무 또는 시간 변경 규칙 |
+| 예약 유형 일정 예외 시간 구간 | `AppointmentScheduleExceptionTimeRange` / `appointment_schedule_exception_time_range` | 시간 변경 예외가 대체할 예약 가능 시간 구간 |
 | 예약 가능 시간 구간 | - | 특정 날짜에 예약을 받을 수 있는 연속된 시간 범위 |
-| 예약 | `Reservation` / `reservations` | 고객 한 명이 예약 세션에 참여하도록 생성한 기록 |
+| 예약 | `Reservation` / `reservation` | 고객 한 명이 예약 세션에 참여하도록 생성한 기록 |
 | 예약 점유 시간 | - | 예약 세션의 소요 시간과 준비 시간을 포함해 다른 예약을 막는 시간 범위 |
 
 ## 도메인 개념
