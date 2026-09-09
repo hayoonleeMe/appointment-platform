@@ -10,6 +10,6 @@ public class TestContainerConfig {
   @Bean
   @ServiceConnection
   MySQLContainer mySQLContainer() {
-    return new MySQLContainer("mysql:8.4");
+    return new MySQLContainer("mysql:8.4").withUrlParam("sslMode", "DISABLED");
   }
 }
