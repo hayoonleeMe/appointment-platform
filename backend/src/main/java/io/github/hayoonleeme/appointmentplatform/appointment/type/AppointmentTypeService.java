@@ -1,5 +1,7 @@
 package io.github.hayoonleeme.appointmentplatform.appointment.type;
 
+import io.github.hayoonleeme.appointmentplatform.appointment.schedule.AppointmentScheduleParams;
+import io.github.hayoonleeme.appointmentplatform.appointment.schedule.AppointmentScheduleService;
 import io.github.hayoonleeme.appointmentplatform.operator.Operator;
 import io.github.hayoonleeme.appointmentplatform.operator.OperatorRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AppointmentTypeService {
   private final OperatorRepository operatorRepository;
   private final AppointmentTypeRepository appointmentTypeRepository;
+  private final AppointmentScheduleService appointmentScheduleService;
 
   @Transactional
   public AppointmentType register(
@@ -22,22 +25,25 @@ public class AppointmentTypeService {
       Short durationMinutes,
       Short preparationMinutes,
       Short startIntervalMinutes,
-      boolean active) {
+      boolean active,
+      AppointmentScheduleParams params) {
     Operator operator =
         operatorRepository
             .findById(operatorId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "operator not found"));
     AppointmentType appointmentType =
-        new AppointmentType(
-            name,
-            appointmentMethod,
-            durationMinutes,
-            preparationMinutes,
-            startIntervalMinutes,
-            active,
-            operator);
-    return appointmentTypeRepository.save(appointmentType);
+        appointmentTypeRepository.save(
+            new AppointmentType(
+                name,
+                appointmentMethod,
+                durationMinutes,
+                preparationMinutes,
+                startIntervalMinutes,
+                active,
+                operator));
+    appointmentScheduleService.register(appointmentType, params);
+    return appointmentType;
   }
 
   @Transactional
