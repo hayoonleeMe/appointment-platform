@@ -1,14 +1,11 @@
 package io.github.hayoonleeme.appointmentplatform.appointment.type;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.github.hayoonleeme.appointmentplatform.TestContainerConfig;
-import io.github.hayoonleeme.appointmentplatform.appointment.schedule.AppointmentScheduleParams;
 import io.github.hayoonleeme.appointmentplatform.appointment.schedule.AppointmentScheduleRepository;
 import io.github.hayoonleeme.appointmentplatform.appointment.schedule.ScheduleExceptionType;
 import io.github.hayoonleeme.appointmentplatform.operator.Operator;
@@ -31,22 +28,22 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.json.JsonMapper;
 
 @Import(TestContainerConfig.class)
 @SpringBootTest
 @AutoConfigureMockMvc
-public class AppointmentTypeApiIntegrationTest {
+class AppointmentTypeRegistrationApiIntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private OperatorRepository operatorRepository;
   @Autowired private AppointmentTypeRepository appointmentTypeRepository;
   @Autowired private AppointmentScheduleRepository appointmentScheduleRepository;
-  @Autowired private AppointmentTypeService appointmentTypeService;
   @Autowired private EntityManager entityManager;
   @Autowired private JsonMapper jsonMapper;
 
   @AfterEach
-  void clean() {
+  void cleanDatabase() {
     appointmentScheduleRepository.deleteAll();
     appointmentTypeRepository.deleteAll();
     operatorRepository.deleteAll();
@@ -55,75 +52,44 @@ public class AppointmentTypeApiIntegrationTest {
   @Test
   void registerOneOnOneAppointmentTypeSuccessfully() throws Exception {
     Operator operator = operatorRepository.save(new Operator());
-    Long operatorId = operator.getId();
 
-    AppointmentTypeController.RegisterRequest request =
-        new AppointmentTypeController.RegisterRequest(
-            "상담",
-            AppointmentMethod.ONE_ON_ONE,
-            (short) 50,
-            (short) 10,
-            (short) 30,
-            true,
-            validSchedule());
+    long appointmentTypeId = register(operator.getId(), validOneOnOneRequest(validSchedule()));
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                post("/api/operators/{operatorId}/appointment-types", operatorId)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(jsonMapper.writeValueAsString(request)))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.id").isNumber())
-            .andReturn();
-
-    long appointmentTypeId =
-        jsonMapper.readTree(result.getResponse().getContentAsString()).get("id").longValue();
-    assertThat(appointmentTypeRepository.findByIdAndOperatorId(appointmentTypeId, operatorId))
+    assertThat(appointmentTypeRepository.findByIdAndOperatorId(appointmentTypeId, operator.getId()))
         .isPresent();
-    assertThat(appointmentScheduleRepository.count()).isOne();
+    assertThat(
+            appointmentScheduleRepository.findByAppointmentTypeOperatorIdAndAppointmentTypeId(
+                operator.getId(), appointmentTypeId))
+        .isPresent();
   }
 
   @Test
   void registerGroupAppointmentTypeSuccessfully() throws Exception {
     Operator operator = operatorRepository.save(new Operator());
-    Long operatorId = operator.getId();
-
     AppointmentTypeController.RegisterRequest request =
         new AppointmentTypeController.RegisterRequest(
             "상담", AppointmentMethod.GROUP, (short) 50, (short) 10, null, true, validSchedule());
 
-    MvcResult result =
-        mockMvc
-            .perform(
-                post("/api/operators/{operatorId}/appointment-types", operatorId)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(jsonMapper.writeValueAsString(request)))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.id").isNumber())
-            .andReturn();
+    long appointmentTypeId = register(operator.getId(), request);
 
-    long appointmentTypeId =
-        jsonMapper.readTree(result.getResponse().getContentAsString()).get("id").longValue();
-    assertThat(appointmentTypeRepository.findByIdAndOperatorId(appointmentTypeId, operatorId))
+    assertThat(appointmentTypeRepository.findByIdAndOperatorId(appointmentTypeId, operator.getId()))
         .isPresent();
-    assertThat(appointmentScheduleRepository.count()).isOne();
+    assertThat(
+            appointmentScheduleRepository.findByAppointmentTypeOperatorIdAndAppointmentTypeId(
+                operator.getId(), appointmentTypeId))
+        .isPresent();
   }
 
   @Test
   void registerAppointmentTypeWithCompleteScheduleSuccessfully() throws Exception {
     Operator operator = operatorRepository.save(new Operator());
 
-    AppointmentTypeController.RegisterRequest request = validOneOnOneRequest(completeSchedule());
+    long appointmentTypeId = register(operator.getId(), validOneOnOneRequest(completeSchedule()));
 
-    mockMvc
-        .perform(
-            post("/api/operators/{operatorId}/appointment-types", operator.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonMapper.writeValueAsString(request)))
-        .andExpect(status().isCreated());
-
-    assertThat(appointmentScheduleRepository.count()).isOne();
+    assertThat(
+            appointmentScheduleRepository.findByAppointmentTypeOperatorIdAndAppointmentTypeId(
+                operator.getId(), appointmentTypeId))
+        .isPresent();
     assertThat(tableCount("appointment_schedule_weekly_time_range")).isEqualTo(3);
     assertThat(tableCount("appointment_schedule_exception")).isEqualTo(2);
     assertThat(tableCount("appointment_schedule_exception_time_range")).isEqualTo(2);
@@ -149,12 +115,8 @@ public class AppointmentTypeApiIntegrationTest {
             true,
             validSchedule());
 
-    mockMvc
-        .perform(
-            post("/api/operators/{operatorId}/appointment-types", 1L)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest());
+    postRegister(1L, request).andExpect(status().isBadRequest());
+
     assertThat(appointmentTypeRepository.count()).isZero();
     assertThat(appointmentScheduleRepository.count()).isZero();
   }
@@ -163,15 +125,36 @@ public class AppointmentTypeApiIntegrationTest {
   @MethodSource("invalidRegisterRequests")
   void rejectsInvalidRegisterRequest(
       String scenario, AppointmentTypeController.RegisterRequest request) throws Exception {
-    mockMvc
-        .perform(
-            post("/api/operators/{operatorId}/appointment-types", 1L)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest());
+    postRegister(1L, request).andExpect(status().isBadRequest());
 
     assertThat(appointmentTypeRepository.count()).isZero();
     assertThat(appointmentScheduleRepository.count()).isZero();
+  }
+
+  @Test
+  void rejectsRegistrationForNonexistentOperator() throws Exception {
+    postRegister(1L, validOneOnOneRequest(validSchedule())).andExpect(status().isNotFound());
+
+    assertThat(appointmentTypeRepository.count()).isZero();
+    assertThat(appointmentScheduleRepository.count()).isZero();
+  }
+
+  private long register(Long operatorId, AppointmentTypeController.RegisterRequest request)
+      throws Exception {
+    MvcResult result =
+        postRegister(operatorId, request)
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").isNumber())
+            .andReturn();
+    return jsonMapper.readTree(result.getResponse().getContentAsString()).get("id").longValue();
+  }
+
+  private ResultActions postRegister(
+      Long operatorId, AppointmentTypeController.RegisterRequest request) throws Exception {
+    return mockMvc.perform(
+        post("/api/operators/{operatorId}/appointment-types", operatorId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(jsonMapper.writeValueAsString(request)));
   }
 
   private static Stream<Arguments> invalidRegisterRequests() {
@@ -314,66 +297,15 @@ public class AppointmentTypeApiIntegrationTest {
                                 timeRange(LocalTime.of(11, 0), LocalTime.of(13, 0)))))))));
   }
 
-  private static AppointmentTypeController.ScheduleRequest validSchedule() {
-    return new AppointmentTypeController.ScheduleRequest(
-        LocalDate.of(2026, 1, 1),
-        LocalDate.of(2026, 12, 31),
-        List.of(
-            new AppointmentTypeController.ScheduleRequest.WeeklyTimeRangeRequest(
-                DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(18, 0))),
-        List.of());
-  }
-
-  @Test
-  void rejectsRegistrationForNonexistentOperator() throws Exception {
-    mockMvc
-        .perform(
-            post("/api/operators/{operatorId}/appointment-types", 1L)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonMapper.writeValueAsString(validOneOnOneRequest(validSchedule()))))
-        .andExpect(status().isNotFound());
-
-    assertThat(appointmentTypeRepository.count()).isZero();
-    assertThat(appointmentScheduleRepository.count()).isZero();
-  }
-
-  @Test
-  void rollsBackRegistrationWhenScheduleValidationFails() {
-    Operator operator = operatorRepository.save(new Operator());
-    AppointmentScheduleParams params =
-        new AppointmentScheduleParams(
-            LocalDate.of(2026, 1, 1),
-            LocalDate.of(2026, 12, 31),
-            List.of(
-                new AppointmentScheduleParams.WeeklyTimeRange(
-                    DayOfWeek.MONDAY,
-                    new AppointmentScheduleParams.TimeRange(
-                        LocalTime.of(9, 0), LocalTime.of(18, 0)))),
-            List.of(
-                new AppointmentScheduleParams.ScheduleException(
-                    LocalDate.of(2026, 1, 2), ScheduleExceptionType.CUSTOM_TIME, List.of())));
-
-    assertThatThrownBy(
-            () ->
-                appointmentTypeService.register(
-                    operator.getId(),
-                    "상담",
-                    AppointmentMethod.ONE_ON_ONE,
-                    (short) 50,
-                    (short) 10,
-                    (short) 30,
-                    true,
-                    params))
-        .isInstanceOf(IllegalArgumentException.class);
-
-    assertThat(appointmentTypeRepository.count()).isZero();
-    assertThat(appointmentScheduleRepository.count()).isZero();
-  }
-
   private static AppointmentTypeController.RegisterRequest validOneOnOneRequest(
       AppointmentTypeController.ScheduleRequest schedule) {
     return new AppointmentTypeController.RegisterRequest(
         "상담", AppointmentMethod.ONE_ON_ONE, (short) 50, (short) 10, (short) 30, true, schedule);
+  }
+
+  private static AppointmentTypeController.ScheduleRequest validSchedule() {
+    return schedule(
+        LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), validWeeklyTimeRanges(), List.of());
   }
 
   private static AppointmentTypeController.ScheduleRequest completeSchedule() {
@@ -422,7 +354,8 @@ public class AppointmentTypeApiIntegrationTest {
         date, type, timeRanges);
   }
 
-  private static List<AppointmentTypeController.ScheduleRequest.TimeRangeRequest> validTimeRanges() {
+  private static List<AppointmentTypeController.ScheduleRequest.TimeRangeRequest>
+      validTimeRanges() {
     return List.of(timeRange(LocalTime.of(9, 0), LocalTime.of(18, 0)));
   }
 
@@ -435,72 +368,5 @@ public class AppointmentTypeApiIntegrationTest {
     return ((Number)
             entityManager.createNativeQuery("select count(*) from " + tableName).getSingleResult())
         .longValue();
-  }
-
-  @Test
-  void updateActiveAppointmentTypeSuccessfully() throws Exception {
-    Operator operator = operatorRepository.save(new Operator());
-    Long operatorId = operator.getId();
-
-    AppointmentType appointmentType =
-        appointmentTypeRepository.save(
-            new AppointmentType(
-                "상담",
-                AppointmentMethod.ONE_ON_ONE,
-                (short) 50,
-                (short) 10,
-                (short) 30,
-                true,
-                operator));
-    Long appointmentTypeId = appointmentType.getId();
-
-    AppointmentTypeController.UpdateRequest request =
-        new AppointmentTypeController.UpdateRequest(false);
-
-    mockMvc
-        .perform(
-            patch(
-                    "/api/operators/{operatorId}/appointment-types/{appointmentTypeId}",
-                    operatorId,
-                    appointmentTypeId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonMapper.writeValueAsString(request)))
-        .andExpect(status().isNoContent());
-
-    AppointmentType updated =
-        appointmentTypeRepository
-            .findByIdAndOperatorId(appointmentTypeId, operatorId)
-            .orElseThrow();
-    assertThat(updated.isActive()).isFalse();
-  }
-
-  @Test
-  void rejectsUpdateForAnotherOperatorsAppointmentType() throws Exception {
-    Operator operator1 = operatorRepository.save(new Operator());
-    Operator operator2 = operatorRepository.save(new Operator());
-
-    AppointmentType appointmentType =
-        appointmentTypeRepository.save(
-            new AppointmentType(
-                "상담",
-                AppointmentMethod.ONE_ON_ONE,
-                (short) 50,
-                (short) 10,
-                (short) 10,
-                true,
-                operator1));
-
-    AppointmentTypeController.UpdateRequest request =
-        new AppointmentTypeController.UpdateRequest(false);
-
-    mockMvc
-        .perform(
-            patch(
-                    "/api/operators/{operator2Id}/appointment-types/{appointmentTypeId}",
-                    operator2.getId(),
-                    appointmentType.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonMapper.writeValueAsString(request)))
-        .andExpect(status().isNotFound());
   }
 }
