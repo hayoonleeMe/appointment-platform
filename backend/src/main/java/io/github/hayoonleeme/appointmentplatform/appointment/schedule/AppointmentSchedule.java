@@ -7,8 +7,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.Getter;
 
 @Entity
+@Getter
 public class AppointmentSchedule {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -78,6 +80,46 @@ public class AppointmentSchedule {
     }
     scheduleExceptions.add(scheduleException);
     return scheduleException;
+  }
+
+  public void replace(AppointmentScheduleParams params) {
+    if (params.startDate() == null) {
+      throw new IllegalArgumentException("startDate must not be null");
+    }
+    if (params.endDate() == null) {
+      throw new IllegalArgumentException("endDate must not be null");
+    }
+    if (params.startDate().isAfter(params.endDate())) {
+      throw new IllegalArgumentException("startDate must not be after endDate");
+    }
+    this.startDate = params.startDate();
+    this.endDate = params.endDate();
+
+    this.weeklyTimeRanges.clear();
+    this.scheduleExceptions.clear();
+
+    params
+        .weeklyTimeRanges()
+        .forEach(
+            weeklyTimeRange ->
+                addWeeklyTimeRange(
+                    weeklyTimeRange.dayOfWeek(),
+                    weeklyTimeRange.timeRange().startTime(),
+                    weeklyTimeRange.timeRange().endTime()));
+
+    for (AppointmentScheduleParams.ScheduleException paramScheduleException :
+        params.scheduleExceptions()) {
+      AppointmentScheduleException scheduleException =
+          addScheduleException(paramScheduleException.date(), paramScheduleException.type());
+      paramScheduleException
+          .timeRanges()
+          .forEach(
+              timeRange ->
+                  scheduleException.addExceptionTimeRange(
+                      timeRange.startTime(), timeRange.endTime()));
+    }
+
+    validate();
   }
 
   public void validate() {

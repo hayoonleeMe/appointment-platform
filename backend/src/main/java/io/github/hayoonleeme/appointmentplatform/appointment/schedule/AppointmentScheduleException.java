@@ -8,6 +8,7 @@ import java.util.List;
 import lombok.Getter;
 
 @Entity
+@Getter
 public class AppointmentScheduleException {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,7 +19,6 @@ public class AppointmentScheduleException {
   private AppointmentSchedule appointmentSchedule;
 
   @Column(name = "exception_date", nullable = false)
-  @Getter
   private LocalDate date;
 
   @Enumerated(EnumType.STRING)

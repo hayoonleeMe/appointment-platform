@@ -1,7 +1,6 @@
 package io.github.hayoonleeme.appointmentplatform.appointment.type;
 
-import io.github.hayoonleeme.appointmentplatform.appointment.schedule.AppointmentScheduleParams;
-import io.github.hayoonleeme.appointmentplatform.appointment.schedule.ScheduleExceptionType;
+import io.github.hayoonleeme.appointmentplatform.appointment.schedule.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.time.DayOfWeek;
@@ -19,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AppointmentTypeController {
   private final AppointmentTypeService appointmentTypeService;
+  private final AppointmentScheduleService appointmentScheduleService;
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
@@ -44,6 +44,22 @@ public class AppointmentTypeController {
       @PathVariable Long appointmentTypeId,
       @RequestBody @Valid UpdateRequest request) {
     appointmentTypeService.updateActive(operatorId, appointmentTypeId, request.active);
+  }
+
+  @GetMapping("/{appointmentTypeId}/schedule")
+  public AppointmentScheduleDetails getSchedule(
+      @PathVariable Long operatorId, @PathVariable Long appointmentTypeId) {
+    return appointmentScheduleService.getSchedule(operatorId, appointmentTypeId);
+  }
+
+  @PutMapping("/{appointmentTypeId}/schedule")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void replaceSchedule(
+      @PathVariable Long operatorId,
+      @PathVariable Long appointmentTypeId,
+      @RequestBody @Valid ScheduleRequest request) {
+    appointmentScheduleService.replaceSchedule(
+        operatorId, appointmentTypeId, request.toScheduleParams());
   }
 
   public record RegisterRequest(
