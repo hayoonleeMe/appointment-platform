@@ -19,8 +19,9 @@
 | 예약 유형 | `AppointmentType` / `appointment_type` | 운영자가 제공하는 예약 단위. 1:1 또는 그룹 수업 방식 중 하나를 가진다. |
 | 예약 방식 | - | 예약 유형의 방식. `1:1` 또는 `그룹 수업`이다. |
 | 예약 세션 | `AppointmentSession` / `appointment_session` | 예약 유형의 특정 시작 시각에 실제로 열리는 예약 단위다. |
-| 예약 유형 일정 | `AppointmentSchedule` / `appointment_schedule` | 예약 유형의 요일별 반복 예약 가능 시간 구간 |
-| 예약 유형 일정 예외 | `AppointmentScheduleException` / `appointment_schedule_exception` | 특정 날짜의 휴무 또는 시간 변경 규칙 |
+| 예약 유형 일정 | `AppointmentSchedule` / `appointment_schedule` | 예약 유형의 예약 가능 기간과 반복 일정 전체 |
+| 예약 유형 일정 주간 시간 구간 | `AppointmentScheduleWeeklyTimeRange` / `appointment_schedule_weekly_time_range` | 예약 유형 일정의 요일 하나에 대한 반복 예약 가능 시간 구간 하나 |
+| 예약 유형 일정 예외 | `AppointmentScheduleException` / `appointment_schedule_exception` | 예약 유형 일정의 특정 날짜 휴무 또는 시간 변경 규칙 |
 | 예약 유형 일정 예외 시간 구간 | `AppointmentScheduleExceptionTimeRange` / `appointment_schedule_exception_time_range` | 시간 변경 예외가 대체할 예약 가능 시간 구간 |
 | 예약 가능 시간 구간 | - | 특정 날짜에 예약을 받을 수 있는 연속된 시간 범위 |
 | 예약 | `Reservation` / `reservation` | 고객 한 명이 예약 세션에 참여하도록 생성한 기록 |
@@ -50,20 +51,25 @@
 
 ### 예약 유형 일정
 
-- 예약 유형에 속하는 요일별 반복 예약 가능 시간 구간이다.
+- 예약 유형에 정확히 하나가 속하는 일정이다. 예약 유형을 생성할 때 반드시 함께 만들며, 예약 가능 기간의 시작 날짜와 종료 날짜, 그리고 반복 일정 전체를 가진다.
+- `AppointmentSchedule`은 요일별 시간 구간을 직접 저장하지 않는다. `AppointmentScheduleWeeklyTimeRange`가 요일, 시작 시각, 종료 시각 하나를 가진다.
+- 운영자는 예약 가능 기간, 모든 `AppointmentScheduleWeeklyTimeRange`, 날짜 예외 목록을 한 번에 전체 교체한다. 저장하지 않은 요일의 기존 시간 구간과 요청에 없는 기존 날짜 예외는 제거된다.
+- 예약 가능 기간의 시작 날짜는 종료 날짜보다 늦을 수 없다. 요청의 모든 날짜 예외는 요청한 예약 가능 기간 안에 있어야 한다.
+- 예약 가능 기간 밖의 날짜는 예약 불가다. 특정 날짜의 최종 예약 가능 시간은 저장하지 않고, 기간, 해당 요일의 반복 일정, 날짜 예외로 계산한다.
 - 모든 시간 구간의 시작 시각은 종료 시각보다 앞서야 한다.
 - 같은 요일에는 하나 이상의 시간 구간을 둘 수 있으나 서로 겹칠 수 없다.
 - 일정이 없는 요일은 해당 예약 유형을 예약할 수 없다.
 
 ### 예약 유형 일정 예외
 
-- 예약 유형의 특정 날짜에 적용하는 예외다.
-- 예약 유형과 날짜 조합에는 하나의 예외만 존재한다.
+- 예약 유형 일정의 특정 날짜에 적용하는 예외다.
+- 예약 유형 일정과 날짜 조합에는 하나의 예외만 존재한다.
 - `휴무` 예외는 해당 날짜의 예약 가능 시간을 비운다.
 - `시간 변경` 예외는 해당 날짜의 반복 예약 가능 시간을 예외 시간 구간으로 대체한다.
 - 시간 변경 예외의 각 시간 구간은 시작 시각이 종료 시각보다 앞서야 한다.
 - 시간 변경 예외의 시간 구간은 서로 겹칠 수 없다.
 - 예외가 없으면 해당 요일의 반복 예약 가능 시간 구간을 사용한다.
+- 예외 날짜는 예약 유형 일정의 예약 가능 기간 안에 있어야 한다.
 
 ### 예약 세션
 
@@ -82,8 +88,9 @@
 ## 관계
 
 - 운영자 1:N 예약 유형
-- 예약 유형 1:N 예약 유형 일정
-- 예약 유형 1:N 예약 유형 일정 예외
+- 예약 유형 1:1 예약 유형 일정
+- 예약 유형 일정 1:N 예약 유형 일정 시간 구간
+- 예약 유형 일정 1:N 예약 유형 일정 예외
 - 예약 유형 일정 예외 1:N 예약 유형 일정 예외 시간 구간
 - 예약 유형 1:N 예약 세션
 - 예약 세션 1:N 예약
@@ -92,7 +99,8 @@
 ## 핵심 규칙
 
 - 예약 세션의 점유 시간은 예약 유형의 소요 시간과 준비 시간을 포함한다.
-- 특정 날짜의 최종 예약 가능 시간은 해당 요일의 반복 일정 또는 날짜 예외로 결정한다. 휴무 예외는 빈 시간으로, 시간 변경 예외는 예외 시간 구간으로 처리한다.
+- 특정 날짜가 예약 가능 기간 밖이면 최종 예약 가능 시간은 비어 있다. 기간 안의 날짜는 해당 요일의 반복 일정 또는 날짜 예외로 결정한다. 휴무 예외는 빈 시간으로, 시간 변경 예외는 예외 시간 구간으로 처리한다.
+- 예약 세션 구현 이후, 반복 일정 또는 날짜 예외를 변경한 결과 해당 예약 유형의 미래 예정 예약 세션 점유 시간이 최종 예약 가능 시간 밖에 놓이면 변경을 거절한다. 취소된 세션과 과거 세션은 제외한다.
 - 1:1 예약 후보와 그룹 수업 예약 세션의 점유 시간은 하나의 최종 예약 가능 시간 구간 안에 있어야 한다.
 - 같은 운영자의 예정된 예약 세션은 예약 유형과 관계없이 점유 시간이 겹칠 수 없다.
 - 1:1 예약 가능 시간 계산은 확정된 1:1 예약 세션과 예정된 그룹 수업 예약 세션을 모두 제외한다.
@@ -107,8 +115,9 @@
 ```mermaid
 erDiagram
     OPERATOR ||--o{ APPOINTMENT_TYPE : provides
-    APPOINTMENT_TYPE ||--o{ APPOINTMENT_SCHEDULE : has
-    APPOINTMENT_TYPE ||--o{ APPOINTMENT_SCHEDULE_EXCEPTION : has
+    APPOINTMENT_TYPE ||--o| APPOINTMENT_SCHEDULE : has
+    APPOINTMENT_SCHEDULE ||--o{ APPOINTMENT_SCHEDULE_TIME_RANGE : has
+    APPOINTMENT_SCHEDULE ||--o{ APPOINTMENT_SCHEDULE_EXCEPTION : has
     APPOINTMENT_SCHEDULE_EXCEPTION ||--o{ APPOINTMENT_SCHEDULE_EXCEPTION_TIME_RANGE : has
     APPOINTMENT_TYPE ||--o{ APPOINTMENT_SESSION : has
     APPOINTMENT_SESSION ||--o{ RESERVATION : receives
